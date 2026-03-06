@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     setIsLoading(true);
     try {
-      const response = await apiClient.verify2FA({ temp_token: tempToken, code });
+      const response = await apiClient.verify2FA({ temp_token: tempToken, totp_code: code });
       setUser(response.user);
       setIsLoggedIn(true);
       setRequires2FA(false);
