@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -97,7 +98,7 @@ export default function SettingsScreen() {
               </View>
               <Text style={styles.settingText}>About</Text>
             </View>
-            <Text style={styles.versionText}>v1.0.0</Text>
+            <Text style={styles.versionText}>v2.1.1</Text>
           </TouchableOpacity>
         </View>
 
@@ -111,9 +112,20 @@ export default function SettingsScreen() {
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
 
-        {/* Footer */}
-        <Text style={styles.footer}>RailStream Studio Admin</Text>
-        <Text style={styles.copyright}>© 2025 RailStream. All rights reserved.</Text>
+        {/* Footer with Branding */}
+        <View style={styles.brandingContainer}>
+          <Image
+            source={require('../../assets/images/login-logo.png')}
+            style={styles.brandingLogo}
+            resizeMode="contain"
+          />
+          <Text style={styles.brandingTitle}>RailStream Studio</Text>
+          <Text style={styles.brandingSubtitle}>Encoder Management System</Text>
+          <View style={styles.divider} />
+          <Text style={styles.developer}>Built by Orange Cat Studios</Text>
+          <Text style={styles.copyright}>© 2025 RailStream. All rights reserved.</Text>
+          <Text style={styles.buildInfo}>Version 2.1.1 (211)</Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -237,17 +249,47 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#ef4444',
   },
-  footer: {
-    textAlign: 'center',
-    color: '#6b7280',
-    fontSize: 14,
-    marginTop: 32,
+  brandingContainer: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    marginTop: 16,
+  },
+  brandingLogo: {
+    width: 60,
+    height: 60,
+    marginBottom: 12,
+  },
+  brandingTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+    marginBottom: 2,
+  },
+  brandingSubtitle: {
+    fontSize: 13,
+    color: '#9ca3af',
+    marginBottom: 16,
+  },
+  divider: {
+    width: 40,
+    height: 2,
+    backgroundColor: '#f59e0b',
+    marginBottom: 16,
+    borderRadius: 1,
+  },
+  developer: {
+    fontSize: 13,
+    color: '#f59e0b',
+    fontWeight: '500',
+    marginBottom: 4,
   },
   copyright: {
-    textAlign: 'center',
-    color: '#4b5563',
     fontSize: 12,
-    marginTop: 4,
-    marginBottom: 20,
+    color: '#4b5563',
+    marginBottom: 2,
+  },
+  buildInfo: {
+    fontSize: 11,
+    color: '#374151',
   },
 });

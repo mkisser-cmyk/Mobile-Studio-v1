@@ -1,27 +1,37 @@
 {
   "expo": {
-    "name": "frontend",
-    "slug": "frontend",
-    "version": "1.0.0",
+    "name": "RailStream Studio",
+    "slug": "railstream-studio",
+    "version": "2.1.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "frontend",
-    "userInterfaceStyle": "automatic",
+    "scheme": "railstream-studio",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "net.railstream.studio",
+      "buildNumber": "211",
+      "infoPlist": {
+        "NSCameraUsageDescription": "View live camera feeds from sites",
+        "NSLocationWhenInUseUsageDescription": "Show nearby sites on map"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#000"
+        "backgroundColor": "#1c1c1c"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "net.railstream.studio",
+      "versionCode": 211
     },
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "RailStream Studio",
+      "shortName": "RailStream"
     },
     "plugins": [
       "expo-router",
@@ -29,14 +39,18 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "imageWidth": 300,
           "resizeMode": "contain",
-          "backgroundColor": "#000"
+          "backgroundColor": "#000000"
         }
       ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "developer": "Orange Cat Studios",
+      "copyright": "© 2025 RailStream. All rights reserved."
     }
   }
 }

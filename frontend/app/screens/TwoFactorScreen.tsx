@@ -9,6 +9,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -82,9 +83,11 @@ export default function TwoFactorScreen() {
         <View style={styles.content}>
           {/* Header */}
           <View style={styles.header}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="shield-checkmark" size={40} color="#f59e0b" />
-            </View>
+            <Image
+              source={require('../../assets/images/login-logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
             <Text style={styles.title}>Two-Factor Authentication</Text>
             <Text style={styles.subtitle}>
               Enter the 6-digit code from your authenticator app
@@ -159,13 +162,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 40,
   },
-  iconCircle: {
+  logo: {
     width: 80,
     height: 80,
-    borderRadius: 40,
-    backgroundColor: '#f59e0b20',
-    alignItems: 'center',
-    justifyContent: 'center',
     marginBottom: 20,
   },
   title: {

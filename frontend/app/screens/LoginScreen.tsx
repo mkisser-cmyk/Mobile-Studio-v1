@@ -9,6 +9,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -46,9 +47,11 @@ export default function LoginScreen() {
         <View style={styles.content}>
           {/* Logo */}
           <View style={styles.logoContainer}>
-            <View style={styles.logoCircle}>
-              <Ionicons name="videocam" size={40} color="#f59e0b" />
-            </View>
+            <Image
+              source={require('../../assets/images/login-logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
             <Text style={styles.appName}>RailStream</Text>
             <Text style={styles.tagline}>Studio Admin</Text>
           </View>
@@ -115,7 +118,11 @@ export default function LoginScreen() {
           </View>
 
           {/* Footer */}
-          <Text style={styles.footer}>Encoder Management System</Text>
+          <View style={styles.footerContainer}>
+            <Text style={styles.footer}>Encoder Management System</Text>
+            <Text style={styles.developer}>Built by Orange Cat Studios</Text>
+            <Text style={styles.version}>v2.1.1</Text>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -137,15 +144,11 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 40,
   },
-  logoCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#f59e0b20',
-    alignItems: 'center',
-    justifyContent: 'center',
+  logo: {
+    width: 120,
+    height: 120,
     marginBottom: 16,
   },
   appName: {
@@ -212,10 +215,25 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#000000',
   },
+  footerContainer: {
+    alignItems: 'center',
+    marginTop: 40,
+  },
   footer: {
     textAlign: 'center',
     color: '#6b7280',
     fontSize: 13,
-    marginTop: 48,
+  },
+  developer: {
+    textAlign: 'center',
+    color: '#f59e0b',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  version: {
+    textAlign: 'center',
+    color: '#4b5563',
+    fontSize: 11,
+    marginTop: 2,
   },
 });
