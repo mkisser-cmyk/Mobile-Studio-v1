@@ -18,6 +18,7 @@ export default function AlertsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notSupported, setNotSupported] = useState(false);
 
   const fetchAlerts = useCallback(async (showLoader = true) => {
     if (showLoader) setIsLoading(true);
@@ -26,8 +27,15 @@ export default function AlertsScreen() {
     try {
       const response = await apiClient.getAlerts();
       setAlerts(response.alerts || []);
+      setNotSupported(false);
     } catch (err: any) {
-      setError(err.message || 'Failed to fetch alerts');
+      // Check if it's a 404 (endpoint not found) or similar
+      if (err.response?.status === 404 || err.response?.status === 405) {
+        setNotSupported(true);
+        setAlerts([]);
+      } else {
+        setError(err.message || 'Failed to fetch alerts');
+      }
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -51,6 +59,40 @@ export default function AlertsScreen() {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#f59e0b" />
           <Text style={styles.loadingText}>Loading alerts...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Show "Coming Soon" if alerts endpoint is not supported
+  if (notSupported) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Alerts</Text>
+        </View>
+        <View style={styles.comingSoonContainer}>
+          <View style={styles.comingSoonIcon}>
+            <Ionicons name="notifications-outline" size={64} color="#f59e0b" />
+          </View>
+          <Text style={styles.comingSoonTitle}>Coming Soon</Text>
+          <Text style={styles.comingSoonText}>
+            Alert notifications will be available in a future update.
+          </Text>
+          <View style={styles.featureList}>
+            <View style={styles.featureItem}>
+              <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
+              <Text style={styles.featureText}>Site offline notifications</Text>
+            </View>
+            <View style={styles.featureItem}>
+              <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
+              <Text style={styles.featureText}>Stream quality alerts</Text>
+            </View>
+            <View style={styles.featureItem}>
+              <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
+              <Text style={styles.featureText}>CPU/GPU threshold warnings</Text>
+            </View>
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -175,5 +217,48 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 15,
     color: '#6b7280',
+  },
+  comingSoonContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+  },
+  comingSoonIcon: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#f59e0b15',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  comingSoonTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginBottom: 8,
+  },
+  comingSoonText: {
+    fontSize: 15,
+    color: '#9ca3af',
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  featureList: {
+    alignSelf: 'stretch',
+  },
+  featureItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+  },
+  featureText: {
+    fontSize: 15,
+    color: '#ffffff',
   },
 });

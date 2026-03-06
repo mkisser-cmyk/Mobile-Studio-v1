@@ -29,21 +29,30 @@ export interface LoginResponse {
   user: User;
 }
 
-// Site types
+// Site types - using snake_case to match API
+export interface AudioLevel {
+  peak: number;
+  rms: number;
+}
+
 export interface SiteHealth {
   status?: string;
-  streamStatus?: string;
-  lastHeartbeat?: string;
-  uptimeSeconds?: number;
-  videoBitrate?: number;
-  sourceBitrate?: number;
-  cpuUsage?: number;
-  gpuUsage?: number;
-  previewImage?: string;
+  stream_status?: string;
+  last_heartbeat?: string;
+  uptime_seconds?: number;
+  video_bitrate?: number;
+  source_bitrate?: number;
+  audio_bitrate?: number;
+  cpu_usage?: number;
+  gpu_usage?: number;
+  gpu_temp?: number;
+  dropped_frames?: number;
+  preview_image?: string;
+  audio_levels?: Record<string, AudioLevel>;
 }
 
 export interface CameraConfig {
-  rtspUrl?: string;
+  rtsp_url?: string;
 }
 
 export interface Site {
@@ -51,16 +60,17 @@ export interface Site {
   name: string;
   location?: string;
   status?: string;
+  agent_version?: string;
   health?: SiteHealth;
   camera?: CameraConfig;
 }
 
-// Alert types
+// Alert types (if alerts endpoint exists)
 export interface Alert {
   id: string;
-  siteId: string;
-  siteName: string;
-  alertType: string;
+  site_id: string;
+  site_name: string;
+  alert_type: string;
   severity: string;
   message: string;
   timestamp: string;

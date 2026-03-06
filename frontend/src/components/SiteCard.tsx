@@ -12,8 +12,9 @@ interface SiteCardProps {
 export default function SiteCard({ site, onPress }: SiteCardProps) {
   const status = site.health?.status || site.status || 'offline';
   const isOnline = status.toLowerCase() === 'online';
-  const bitrate = site.health?.videoBitrate;
-  const previewImage = site.health?.previewImage;
+  // Use snake_case field names from API
+  const bitrate = site.health?.video_bitrate;
+  const previewImage = site.health?.preview_image;
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
@@ -44,7 +45,7 @@ export default function SiteCard({ site, onPress }: SiteCardProps) {
         {isOnline && bitrate && (
           <View style={styles.bitrateRow}>
             <Ionicons name="speedometer" size={14} color="#f59e0b" />
-            <Text style={styles.bitrate}>{Math.round(bitrate / 1000)} Mbps</Text>
+            <Text style={styles.bitrate}>{(bitrate / 1000).toFixed(1)} Mbps</Text>
           </View>
         )}
       </View>

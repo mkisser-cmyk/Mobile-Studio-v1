@@ -121,9 +121,10 @@ export default function SiteDetailScreen() {
     );
   }
 
+  // Use snake_case fields from API
   const status = site.health?.status || site.status || 'offline';
   const isOnline = status.toLowerCase() === 'online';
-  const previewImage = site.health?.previewImage;
+  const previewImage = site.health?.preview_image;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -179,12 +180,12 @@ export default function SiteDetailScreen() {
             <View>
               <Text style={styles.statusLabel}>Stream Status</Text>
               <Text style={[styles.statusValue, { color: isOnline ? '#22c55e' : '#ef4444' }]}>
-                {site.health?.streamStatus || status}
+                {site.health?.stream_status || status}
               </Text>
             </View>
             <View>
               <Text style={styles.statusLabel}>Uptime</Text>
-              <Text style={styles.statusValue}>{formatUptime(site.health?.uptimeSeconds)}</Text>
+              <Text style={styles.statusValue}>{formatUptime(site.health?.uptime_seconds)}</Text>
             </View>
           </View>
         </View>
@@ -194,13 +195,13 @@ export default function SiteDetailScreen() {
         <View style={styles.statsGrid}>
           <StatCard
             title="Output Bitrate"
-            value={formatBitrate(site.health?.videoBitrate)}
+            value={formatBitrate(site.health?.video_bitrate)}
             icon="speedometer"
             color="#f59e0b"
           />
           <StatCard
             title="Source Bitrate"
-            value={formatBitrate(site.health?.sourceBitrate)}
+            value={formatBitrate(site.health?.source_bitrate)}
             icon="cloud-upload"
             color="#3b82f6"
           />
@@ -208,24 +209,56 @@ export default function SiteDetailScreen() {
         <View style={styles.statsGrid}>
           <StatCard
             title="CPU Usage"
-            value={formatPercentage(site.health?.cpuUsage)}
+            value={formatPercentage(site.health?.cpu_usage)}
             icon="hardware-chip"
             color="#22c55e"
           />
           <StatCard
             title="GPU Usage"
-            value={formatPercentage(site.health?.gpuUsage)}
+            value={formatPercentage(site.health?.gpu_usage)}
             icon="desktop"
             color="#8b5cf6"
           />
         </View>
 
+        {/* Additional Stats */}
+        {(site.health?.gpu_temp || site.health?.dropped_frames !== undefined) && (
+          <View style={styles.statsGrid}>
+            {site.health?.gpu_temp && (
+              <StatCard
+                title="GPU Temp"
+                value={`${site.health.gpu_temp}°C`}
+                icon="thermometer"
+                color="#ef4444"
+              />
+            )}
+            {site.health?.dropped_frames !== undefined && (
+              <StatCard
+                title="Dropped Frames"
+                value={site.health.dropped_frames.toString()}
+                icon="warning"
+                color={site.health.dropped_frames > 0 ? '#ef4444' : '#22c55e'}
+              />
+            )}
+          </View>
+        )}
+
         {/* Last Heartbeat */}
-        {site.health?.lastHeartbeat && (
+        {site.health?.last_heartbeat && (
           <View style={styles.heartbeatContainer}>
             <Ionicons name="pulse" size={16} color="#6b7280" />
             <Text style={styles.heartbeatText}>
-              Last heartbeat: {new Date(site.health.lastHeartbeat).toLocaleString()}
+              Last heartbeat: {new Date(site.health.last_heartbeat).toLocaleString()}
+            </Text>
+          </View>
+        )}
+
+        {/* Agent Version */}
+        {site.agent_version && (
+          <View style={styles.heartbeatContainer}>
+            <Ionicons name="information-circle" size={16} color="#6b7280" />
+            <Text style={styles.heartbeatText}>
+              Agent version: {site.agent_version}
             </Text>
           </View>
         )}
@@ -363,7 +396,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginTop: 8,
-    marginBottom: 24,
+    marginBottom: 8,
   },
   heartbeatText: {
     fontSize: 13,
@@ -377,7 +410,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ef4444',
     borderRadius: 12,
     height: 52,
-    marginTop: 8,
+    marginTop: 16,
   },
   restartButtonDisabled: {
     opacity: 0.7,

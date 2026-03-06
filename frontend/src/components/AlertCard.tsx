@@ -9,7 +9,7 @@ interface AlertCardProps {
 
 export default function AlertCard({ alert }: AlertCardProps) {
   const getSeverityColor = (severity: string) => {
-    switch (severity.toLowerCase()) {
+    switch (severity?.toLowerCase()) {
       case 'critical':
         return '#ef4444';
       case 'high':
@@ -24,7 +24,7 @@ export default function AlertCard({ alert }: AlertCardProps) {
   };
 
   const getAlertIcon = (alertType: string): keyof typeof Ionicons.glyphMap => {
-    switch (alertType.toLowerCase()) {
+    switch (alertType?.toLowerCase()) {
       case 'offline':
       case 'connection':
         return 'wifi-off';
@@ -40,6 +40,7 @@ export default function AlertCard({ alert }: AlertCardProps) {
   };
 
   const formatTimestamp = (timestamp: string) => {
+    if (!timestamp) return '';
     const date = new Date(timestamp);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
@@ -53,22 +54,25 @@ export default function AlertCard({ alert }: AlertCardProps) {
   };
 
   const severityColor = getSeverityColor(alert.severity);
+  // Use snake_case field names
+  const siteName = alert.site_name || 'Unknown Site';
+  const alertType = alert.alert_type || 'unknown';
 
   return (
     <View style={[styles.card, { borderLeftColor: severityColor }]}>
       <View style={[styles.iconContainer, { backgroundColor: severityColor + '20' }]}>
-        <Ionicons name={getAlertIcon(alert.alertType)} size={20} color={severityColor} />
+        <Ionicons name={getAlertIcon(alertType)} size={20} color={severityColor} />
       </View>
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.siteName}>{alert.siteName}</Text>
+          <Text style={styles.siteName}>{siteName}</Text>
           <View style={[styles.severityBadge, { backgroundColor: severityColor + '30' }]}>
             <Text style={[styles.severityText, { color: severityColor }]}>
-              {alert.severity.toUpperCase()}
+              {(alert.severity || 'unknown').toUpperCase()}
             </Text>
           </View>
         </View>
-        <Text style={styles.message} numberOfLines={2}>{alert.message}</Text>
+        <Text style={styles.message} numberOfLines={2}>{alert.message || ''}</Text>
         <View style={styles.footer}>
           <Text style={styles.timestamp}>{formatTimestamp(alert.timestamp)}</Text>
           {alert.resolved && (
