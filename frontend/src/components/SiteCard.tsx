@@ -13,7 +13,8 @@ export default function SiteCard({ site, onPress }: SiteCardProps) {
   const status = site.health?.status || site.status || 'offline';
   const streamStatus = site.health?.stream_status || 'stopped';
   const isOnline = status.toLowerCase() === 'online';
-  const isLive = streamStatus.toLowerCase() === 'live';
+  // Check for both 'live' and 'running' as stream active states
+  const isStreaming = ['live', 'running'].includes(streamStatus.toLowerCase());
   
   // Use snake_case field names from API
   const bitrate = site.health?.video_bitrate;
@@ -35,7 +36,7 @@ export default function SiteCard({ site, onPress }: SiteCardProps) {
         )}
         {/* Status overlay */}
         <View style={styles.statusOverlay}>
-          {isLive ? (
+          {isStreaming ? (
             <View style={styles.liveBadge}>
               <View style={styles.liveDot} />
               <Text style={styles.liveText}>LIVE</Text>

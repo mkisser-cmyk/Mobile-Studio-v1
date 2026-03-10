@@ -182,7 +182,8 @@ export default function SiteDetailScreen() {
   const status = site.health?.status || 'offline';
   const streamStatus = site.health?.stream_status || 'stopped';
   const isOnline = status.toLowerCase() === 'online';
-  const isLive = streamStatus.toLowerCase() === 'live';
+  // Check for both 'live' and 'running' as stream active states
+  const isStreaming = ['live', 'running'].includes(streamStatus.toLowerCase());
   const previewImage = site.health?.preview_image;
 
   return (
@@ -201,7 +202,7 @@ export default function SiteDetailScreen() {
                 {status}
               </Text>
             </View>
-            {isLive && (
+            {isStreaming && (
               <View style={styles.liveBadge}>
                 <View style={styles.liveDot} />
                 <Text style={styles.liveText}>LIVE</Text>
@@ -317,7 +318,7 @@ export default function SiteDetailScreen() {
         <View style={styles.controlSection}>
           <Text style={styles.sectionTitle}>Stream Controls</Text>
           <View style={styles.controlRow}>
-            {isLive ? (
+            {isStreaming ? (
               <TouchableOpacity
                 style={[styles.controlButton, styles.stopButton]}
                 onPress={handleStopStream}
@@ -366,13 +367,17 @@ export default function SiteDetailScreen() {
           
           {showLogs && (
             <View style={styles.logsContainer}>
-              {logs.length > 0 ? (
+              {logs && logs.length > 0 ? (
                 <ScrollView style={styles.logsScroll} nestedScrollEnabled>
-                  {logs.slice(0, 20).map((log, index) => (
-                    <Text key={index} style={styles.logLine} numberOfLines={2}>
-                      {log}
-                    </Text>
-                  ))}
+                  {logs.slice(0, 20).map((log, index) => {
+                    // Handle different log formats
+                    const logText = typeof log === 'string' ? log : JSON.stringify(log);
+                    return (
+                      <Text key={index} style={styles.logLine} numberOfLines={2}>
+                        {logText}
+                      </Text>
+                    );
+                  })}
                 </ScrollView>
               ) : (
                 <Text style={styles.noLogs}>No logs available</Text>

@@ -113,14 +113,32 @@ class ApiClient {
 
   // Logs endpoint
   async getSiteLogs(siteId: string, limit: number = 100): Promise<string[]> {
-    const response = await this.client.get<{ logs: string[] } | string[]>(`/sites/${siteId}/logs`, {
-      params: { limit }
-    });
-    // Handle both array and object responses
-    if (Array.isArray(response.data)) {
-      return response.data;
+    try {
+      const response = await this.client.get(`/sites/${siteId}/logs`, {
+        params: { limit }
+      });
+      
+      // Handle various response formats
+      const data = response.data;
+      
+      if (!data) return [];
+      
+      // If it's already an array of strings
+      if (Array.isArray(data)) {
+        return data.map(item => typeof item === 'string' ? item : JSON.stringify(item));
+      }
+      
+      // If it has a logs property
+      if (data.logs && Array.isArray(data.logs)) {
+        return data.logs.map((item: any) => typeof item === 'string' ? item : JSON.stringify(item));
+      }
+      
+      // If it's an object, stringify it
+      return [JSON.stringify(data)];
+    } catch (err: any) {
+      console.log('Error fetching logs:', err.message);
+      return [];
     }
-    return response.data.logs || [];
   }
 
   // Alerts endpoints
