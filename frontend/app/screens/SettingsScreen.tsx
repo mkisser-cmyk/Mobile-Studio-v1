@@ -98,7 +98,7 @@ export default function SettingsScreen() {
               </View>
               <Text style={styles.settingText}>About</Text>
             </View>
-            <Text style={styles.versionText}>v2.1.5</Text>
+            <Text style={styles.versionText}>v2.1.6</Text>
           </TouchableOpacity>
         </View>
 
@@ -124,7 +124,7 @@ export default function SettingsScreen() {
           <View style={styles.divider} />
           <Text style={styles.developer}>Built by Orange Cat Studios</Text>
           <Text style={styles.copyright}>© 2025 RailStream. All rights reserved.</Text>
-          <Text style={styles.buildInfo}>Version 2.1.5 (215)</Text>
+          <Text style={styles.buildInfo}>Version 2.1.6 (216)</Text>
         </View>
       </ScrollView>
     </SafeAreaView>

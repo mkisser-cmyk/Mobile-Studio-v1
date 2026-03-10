@@ -121,7 +121,7 @@ export default function LoginScreen() {
           <View style={styles.footerContainer}>
             <Text style={styles.footer}>Encoder Management System</Text>
             <Text style={styles.developer}>Built by Orange Cat Studios</Text>
-            <Text style={styles.version}>v2.1.5</Text>
+            <Text style={styles.version}>v2.1.6</Text>
           </View>
         </View>
       </KeyboardAvoidingView>
