@@ -367,18 +367,15 @@ export default function SiteDetailScreen() {
           
           {showLogs && (
             <View style={styles.logsContainer}>
-              {logs && logs.length > 0 ? (
-                <ScrollView style={styles.logsScroll} nestedScrollEnabled>
-                  {logs.slice(0, 20).map((log, index) => {
-                    // Handle different log formats
-                    const logText = typeof log === 'string' ? log : JSON.stringify(log);
-                    return (
-                      <Text key={index} style={styles.logLine} numberOfLines={2}>
-                        {logText}
-                      </Text>
-                    );
-                  })}
-                </ScrollView>
+              {logs && Array.isArray(logs) && logs.length > 0 ? (
+                logs.slice(0, 15).map((log, index) => {
+                  const logText = typeof log === 'string' ? log : String(log);
+                  return (
+                    <Text key={`log-${index}`} style={styles.logLine} numberOfLines={1}>
+                      {logText}
+                    </Text>
+                  );
+                })
               ) : (
                 <Text style={styles.noLogs}>No logs available</Text>
               )}
@@ -638,10 +635,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginTop: 8,
     padding: 12,
-    maxHeight: 200,
-  },
-  logsScroll: {
-    maxHeight: 180,
   },
   logLine: {
     fontSize: 11,
