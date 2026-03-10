@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Site } from '../types';
+import StatusBadge from './StatusBadge';
 
 interface SiteCardProps {
   site: Site;
@@ -9,104 +10,76 @@ interface SiteCardProps {
 }
 
 export default function SiteCard({ site, onPress }: SiteCardProps) {
-  const [imageKey, setImageKey] = useState(0);
-  
   const status = site.health?.status || site.status || 'offline';
   const streamStatus = site.health?.stream_status || 'stopped';
   const isOnline = status.toLowerCase() === 'online';
   const isLive = streamStatus.toLowerCase() === 'live';
   
   // Use snake_case field names from API
-  const videoBitrate = site.health?.video_bitrate;
-  const sourceBitrate = site.health?.source_bitrate;
-  const cpuUsage = site.health?.cpu_usage;
+  const bitrate = site.health?.video_bitrate;
   const previewImage = site.health?.preview_image;
-  const agentVersion = site.agent_version;
-
-  // Auto-refresh image every 5 seconds by forcing re-render
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setImageKey(prev => prev + 1);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const formatBitrate = (bitrate: number | undefined) => {
-    if (!bitrate) return '0';
-    return bitrate.toFixed(1);
-  };
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
-      {/* Preview Image */}
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.previewContainer}>
         {previewImage ? (
           <Image
-            key={imageKey}
             source={{ uri: `data:image/jpeg;base64,${previewImage}` }}
             style={styles.preview}
             resizeMode="cover"
           />
         ) : (
           <View style={styles.noPreview}>
-            <Ionicons name="videocam-off" size={48} color="#6b7280" />
-            <Text style={styles.noPreviewText}>No Preview</Text>
+            <Ionicons name="videocam-off" size={24} color="#6b7280" />
           </View>
         )}
-        
-        {/* LIVE Badge */}
-        {isLive && (
-          <View style={styles.liveBadge}>
-            <View style={styles.liveDot} />
-            <Text style={styles.liveText}>LIVE</Text>
-          </View>
-        )}
-        
-        {/* Offline Badge */}
-        {!isOnline && (
-          <View style={styles.offlineBadge}>
-            <Ionicons name="cloud-offline" size={14} color="#ffffff" />
-            <Text style={styles.offlineText}>OFFLINE</Text>
-          </View>
-        )}
+        {/* Status overlay */}
+        <View style={styles.statusOverlay}>
+          {isLive ? (
+            <View style={styles.liveBadge}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveText}>LIVE</Text>
+            </View>
+          ) : (
+            <StatusBadge status={status} size="small" />
+          )}
+        </View>
       </View>
-
-      {/* Site Info */}
-      <View style={styles.infoContainer}>
+      
+      <View style={styles.content}>
         <View style={styles.headerRow}>
-          <View style={styles.titleRow}>
-            <View style={[styles.statusDot, { backgroundColor: isOnline ? '#22c55e' : '#ef4444' }]} />
-            <Text style={styles.siteName} numberOfLines={1}>{site.name}</Text>
-          </View>
-          {agentVersion && (
+          <Text style={styles.name} numberOfLines={1}>{site.name}</Text>
+          {site.agent_version && (
             <View style={styles.versionBadge}>
-              <Ionicons name="download-outline" size={12} color="#22c55e" />
-              <Text style={styles.versionText}>v{agentVersion}</Text>
+              <Text style={styles.versionText}>v{site.agent_version}</Text>
             </View>
           )}
         </View>
         
-        <Text style={styles.location} numberOfLines={1}>{site.location || 'Unknown Location'}</Text>
-
-        {/* Stats Row */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statBox}>
-            <Text style={styles.statLabel}>Output</Text>
-            <Text style={styles.statValue}>{formatBitrate(videoBitrate)} kbps</Text>
-            {sourceBitrate && (
-              <Text style={styles.statSubtext}>In: {formatBitrate(sourceBitrate)} kbps</Text>
-            )}
+        {site.location && (
+          <View style={styles.locationRow}>
+            <Ionicons name="location" size={12} color="#9ca3af" />
+            <Text style={styles.location} numberOfLines={1}>{site.location}</Text>
           </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statBox}>
-            <Text style={styles.statLabel}>System</Text>
-            <Text style={styles.statValue}>CPU: {cpuUsage?.toFixed(1) || '0'}%</Text>
-            {site.health?.gpu_usage !== undefined && (
-              <Text style={styles.statSubtext}>GPU: {site.health.gpu_usage.toFixed(1)}%</Text>
-            )}
-          </View>
+        )}
+        
+        <View style={styles.statsRow}>
+          {isOnline && bitrate && (
+            <View style={styles.statItem}>
+              <Ionicons name="speedometer" size={12} color="#f59e0b" />
+              <Text style={styles.bitrate}>{(bitrate / 1000).toFixed(1)} Mbps</Text>
+            </View>
+          )}
+          {site.health?.cpu_usage !== undefined && (
+            <View style={styles.statItem}>
+              <Ionicons name="hardware-chip" size={12} color="#3b82f6" />
+              <Text style={styles.cpuText}>CPU {site.health.cpu_usage.toFixed(0)}%</Text>
+            </View>
+          )}
         </View>
       </View>
+      
+      <Ionicons name="chevron-forward" size={20} color="#6b7280" />
     </TouchableOpacity>
   );
 }
@@ -114,15 +87,18 @@ export default function SiteCard({ site, onPress }: SiteCardProps) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#1a1a1a',
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginBottom: 16,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    marginBottom: 10,
   },
   previewContainer: {
-    width: '100%',
-    aspectRatio: 16 / 9,
-    backgroundColor: '#0a0a0a',
-    position: 'relative',
+    width: 80,
+    height: 56,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#2a2a2a',
   },
   preview: {
     width: '100%',
@@ -134,124 +110,87 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  noPreviewText: {
-    color: '#6b7280',
-    fontSize: 14,
-    marginTop: 8,
+  statusOverlay: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
   },
   liveBadge: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#22c55e',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-    gap: 6,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+    gap: 3,
   },
   liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
     backgroundColor: '#ffffff',
   },
   liveText: {
     color: '#ffffff',
-    fontSize: 12,
+    fontSize: 9,
     fontWeight: '700',
   },
-  offlineBadge: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ef4444',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-    gap: 6,
-  },
-  offlineText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  infoContainer: {
-    padding: 16,
+  content: {
+    flex: 1,
+    marginLeft: 12,
   },
   headerRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: 8,
-  },
-  statusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  siteName: {
-    fontSize: 18,
+  name: {
+    fontSize: 15,
     fontWeight: '600',
     color: '#ffffff',
     flex: 1,
   },
   versionBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: '#22c55e20',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 8,
   },
   versionText: {
     color: '#22c55e',
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '600',
   },
-  location: {
-    fontSize: 14,
-    color: '#9ca3af',
-    marginBottom: 12,
-    marginLeft: 18,
-  },
-  statsContainer: {
+  locationRow: {
     flexDirection: 'row',
-    backgroundColor: '#0f0f0f',
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  statBox: {
-    flex: 1,
-    padding: 12,
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: '#2a2a2a',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#6b7280',
+    alignItems: 'center',
+    gap: 4,
     marginBottom: 4,
   },
-  statValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
-  statSubtext: {
+  location: {
     fontSize: 12,
-    color: '#6b7280',
-    marginTop: 2,
+    color: '#9ca3af',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  bitrate: {
+    fontSize: 12,
+    color: '#f59e0b',
+    fontWeight: '500',
+  },
+  cpuText: {
+    fontSize: 12,
+    color: '#3b82f6',
+    fontWeight: '500',
   },
 });
