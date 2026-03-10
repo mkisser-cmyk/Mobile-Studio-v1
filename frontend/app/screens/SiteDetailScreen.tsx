@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,22 +9,27 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { apiClient } from '../../src/services/api';
 import { Site } from '../../src/types';
-import StatusBadge from '../../src/components/StatusBadge';
-import StatCard from '../../src/components/StatCard';
+
+const { width } = Dimensions.get('window');
 
 export default function SiteDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [site, setSite] = useState<Site | null>(null);
+  const [logs, setLogs] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isRestarting, setIsRestarting] = useState(false);
+  const [isStreamLoading, setIsStreamLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showLogs, setShowLogs] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchSite = useCallback(async (showLoader = true) => {
     if (!id) return;
@@ -34,6 +39,7 @@ export default function SiteDetailScreen() {
     try {
       const data = await apiClient.getSite(id);
       setSite(data);
+      setLastUpdate(new Date());
     } catch (err: any) {
       setError(err.message || 'Failed to fetch site details');
     } finally {
@@ -42,33 +48,92 @@ export default function SiteDetailScreen() {
     }
   }, [id]);
 
+  const fetchLogs = useCallback(async () => {
+    if (!id) return;
+    try {
+      const logsData = await apiClient.getSiteLogs(id, 50);
+      setLogs(logsData);
+    } catch (err: any) {
+      console.log('Logs not available:', err.message);
+    }
+  }, [id]);
+
   useEffect(() => {
     fetchSite();
-  }, [fetchSite]);
+    fetchLogs();
+    
+    // Auto-refresh every 5 seconds
+    intervalRef.current = setInterval(() => {
+      fetchSite(false);
+    }, 5000);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [fetchSite, fetchLogs]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
     fetchSite(false);
+    fetchLogs();
+  };
+
+  const handleStopStream = async () => {
+    Alert.alert(
+      'Stop Stream',
+      `Are you sure you want to stop the stream for ${site?.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Stop',
+          style: 'destructive',
+          onPress: async () => {
+            setIsStreamLoading(true);
+            try {
+              await apiClient.stopStream(id!);
+              Alert.alert('Success', 'Stream stop command sent');
+              fetchSite(false);
+            } catch (err: any) {
+              Alert.alert('Error', err.response?.data?.detail || 'Failed to stop stream');
+            } finally {
+              setIsStreamLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleStartStream = async () => {
+    setIsStreamLoading(true);
+    try {
+      await apiClient.startStream(id!);
+      Alert.alert('Success', 'Stream start command sent');
+      fetchSite(false);
+    } catch (err: any) {
+      Alert.alert('Error', err.response?.data?.detail || 'Failed to start stream');
+    } finally {
+      setIsStreamLoading(false);
+    }
   };
 
   const handleRestart = () => {
     Alert.alert(
       'Restart Site PC',
-      `Are you sure you want to restart ${site?.name}? This will temporarily disrupt the stream.`,
+      `Are you sure you want to restart ${site?.name}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Restart',
           style: 'destructive',
           onPress: async () => {
-            setIsRestarting(true);
             try {
-              const response = await apiClient.restartSitePC(id!);
-              Alert.alert('Success', response.message || 'Restart command sent successfully');
+              await apiClient.restartSitePC(id!);
+              Alert.alert('Success', 'Restart command sent');
             } catch (err: any) {
-              Alert.alert('Error', err.response?.data?.detail || 'Failed to restart site');
-            } finally {
-              setIsRestarting(false);
+              Alert.alert('Error', err.response?.data?.detail || 'Failed to restart');
             }
           },
         },
@@ -77,7 +142,7 @@ export default function SiteDetailScreen() {
   };
 
   const formatUptime = (seconds: number | undefined) => {
-    if (!seconds) return 'N/A';
+    if (!seconds) return '0m';
     const days = Math.floor(seconds / 86400);
     const hours = Math.floor((seconds % 86400) / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
@@ -86,14 +151,8 @@ export default function SiteDetailScreen() {
     return `${mins}m`;
   };
 
-  const formatBitrate = (bitrate: number | undefined) => {
-    if (!bitrate) return 'N/A';
-    return `${(bitrate / 1000).toFixed(1)} Mbps`;
-  };
-
-  const formatPercentage = (value: number | undefined) => {
-    if (value === undefined || value === null) return 'N/A';
-    return `${value.toFixed(1)}%`;
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   };
 
   if (isLoading) {
@@ -115,15 +174,15 @@ export default function SiteDetailScreen() {
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle" size={48} color="#ef4444" />
           <Text style={styles.errorText}>{error || 'Site not found'}</Text>
-          <Text style={styles.retryText} onPress={() => fetchSite()}>Tap to retry</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  // Use snake_case fields from API
-  const status = site.health?.status || site.status || 'offline';
+  const status = site.health?.status || 'offline';
+  const streamStatus = site.health?.stream_status || 'stopped';
   const isOnline = status.toLowerCase() === 'online';
+  const isLive = streamStatus.toLowerCase() === 'live';
   const previewImage = site.health?.preview_image;
 
   return (
@@ -135,12 +194,20 @@ export default function SiteDetailScreen() {
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.title} numberOfLines={1}>{site.name}</Text>
-          {site.location && (
-            <View style={styles.locationRow}>
-              <Ionicons name="location" size={14} color="#9ca3af" />
-              <Text style={styles.location}>{site.location}</Text>
+          <View style={styles.headerBadges}>
+            <View style={[styles.statusBadge, { backgroundColor: isOnline ? '#22c55e20' : '#ef444420' }]}>
+              <View style={[styles.statusDot, { backgroundColor: isOnline ? '#22c55e' : '#ef4444' }]} />
+              <Text style={[styles.statusText, { color: isOnline ? '#22c55e' : '#ef4444' }]}>
+                {status}
+              </Text>
             </View>
-          )}
+            {isLive && (
+              <View style={styles.liveBadge}>
+                <View style={styles.liveDot} />
+                <Text style={styles.liveText}>LIVE</Text>
+              </View>
+            )}
+          </View>
         </View>
       </View>
 
@@ -148,135 +215,176 @@ export default function SiteDetailScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            tintColor="#f59e0b"
-          />
+          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor="#f59e0b" />
         }
       >
-        {/* Preview Image */}
-        <View style={styles.previewContainer}>
-          {previewImage ? (
-            <Image
-              source={{ uri: `data:image/jpeg;base64,${previewImage}` }}
-              style={styles.previewImage}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={styles.noPreview}>
-              <Ionicons name="videocam-off" size={48} color="#6b7280" />
-              <Text style={styles.noPreviewText}>No preview available</Text>
+        {/* Preview */}
+        <View style={styles.previewSection}>
+          <View style={styles.previewHeader}>
+            <View style={styles.previewTitle}>
+              <Ionicons name="videocam" size={16} color="#f59e0b" />
+              <Text style={styles.previewLabel}>Preview</Text>
             </View>
-          )}
-          <View style={styles.statusBadgeOverlay}>
-            <StatusBadge status={status} size="medium" />
+            <Text style={styles.updateTime}>{formatTime(lastUpdate)}</Text>
+          </View>
+          <View style={styles.previewContainer}>
+            {previewImage ? (
+              <Image
+                source={{ uri: `data:image/jpeg;base64,${previewImage}` }}
+                style={styles.previewImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={styles.noPreview}>
+                <Ionicons name="videocam-off" size={48} color="#6b7280" />
+                <Text style={styles.noPreviewText}>No preview available</Text>
+              </View>
+            )}
           </View>
         </View>
 
-        {/* Status Card */}
-        <View style={styles.statusCard}>
-          <View style={styles.statusRow}>
-            <View>
-              <Text style={styles.statusLabel}>Stream Status</Text>
-              <Text style={[styles.statusValue, { color: isOnline ? '#22c55e' : '#ef4444' }]}>
-                {site.health?.stream_status || status}
+        {/* Quick Stats */}
+        <View style={styles.statsGrid}>
+          <View style={styles.statCard}>
+            <Ionicons name="wifi" size={20} color="#f59e0b" />
+            <Text style={styles.statCardValue}>
+              {((site.health?.video_bitrate || 0) / 1000).toFixed(1)} Mbps
+            </Text>
+            <Text style={styles.statCardLabel}>Output</Text>
+            <Text style={styles.statCardSub}>
+              In: {((site.health?.source_bitrate || 0) / 1000).toFixed(1)} Mbps
+            </Text>
+          </View>
+          
+          <View style={styles.statCard}>
+            <Ionicons name="pulse" size={20} color="#22c55e" />
+            <Text style={styles.statCardValue}>{site.health?.dropped_frames || 0} FPS</Text>
+            <Text style={styles.statCardLabel}>Dropped</Text>
+          </View>
+          
+          <View style={styles.statCard}>
+            <Ionicons name="hardware-chip" size={20} color="#3b82f6" />
+            <Text style={styles.statCardValue}>{(site.health?.cpu_usage || 0).toFixed(0)}%</Text>
+            <Text style={styles.statCardLabel}>CPU</Text>
+            {site.health?.gpu_usage !== undefined && (
+              <Text style={styles.statCardSub}>GPU: {site.health.gpu_usage.toFixed(0)}%</Text>
+            )}
+          </View>
+          
+          <View style={styles.statCard}>
+            <Ionicons name="time" size={20} color="#8b5cf6" />
+            <Text style={styles.statCardValue}>{formatUptime(site.health?.uptime_seconds)}</Text>
+            <Text style={styles.statCardLabel}>Uptime</Text>
+          </View>
+        </View>
+
+        {/* Additional Info */}
+        <View style={styles.infoSection}>
+          <Text style={styles.sectionTitle}>Details</Text>
+          <View style={styles.infoCard}>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Location</Text>
+              <Text style={styles.infoValue}>{site.location || 'Unknown'}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Agent Version</Text>
+              <Text style={styles.infoValue}>v{site.agent_version || 'Unknown'}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Stream Status</Text>
+              <Text style={[styles.infoValue, { color: isLive ? '#22c55e' : '#f59e0b' }]}>
+                {streamStatus}
               </Text>
             </View>
-            <View>
-              <Text style={styles.statusLabel}>Uptime</Text>
-              <Text style={styles.statusValue}>{formatUptime(site.health?.uptime_seconds)}</Text>
+            {site.health?.last_heartbeat && (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Last Heartbeat</Text>
+                <Text style={styles.infoValue}>
+                  {new Date(site.health.last_heartbeat).toLocaleString()}
+                </Text>
+              </View>
+            )}
+            {site.health?.gpu_temp !== undefined && (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>GPU Temp</Text>
+                <Text style={styles.infoValue}>{site.health.gpu_temp}°C</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Stream Controls */}
+        <View style={styles.controlSection}>
+          <Text style={styles.sectionTitle}>Stream Controls</Text>
+          <View style={styles.controlRow}>
+            {isLive ? (
+              <TouchableOpacity
+                style={[styles.controlButton, styles.stopButton]}
+                onPress={handleStopStream}
+                disabled={isStreamLoading}
+              >
+                {isStreamLoading ? (
+                  <ActivityIndicator color="#ffffff" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="stop" size={18} color="#ffffff" />
+                    <Text style={styles.controlButtonText}>Stop</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[styles.controlButton, styles.startButton]}
+                onPress={handleStartStream}
+                disabled={isStreamLoading}
+              >
+                {isStreamLoading ? (
+                  <ActivityIndicator color="#ffffff" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="play" size={18} color="#ffffff" />
+                    <Text style={styles.controlButtonText}>Start</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.refreshButton} onPress={() => fetchSite(false)}>
+              <Ionicons name="refresh" size={20} color="#9ca3af" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Logs Section */}
+        <View style={styles.logsSection}>
+          <TouchableOpacity style={styles.logsHeader} onPress={() => setShowLogs(!showLogs)}>
+            <View style={styles.logsTitle}>
+              <Ionicons name="terminal" size={18} color="#f59e0b" />
+              <Text style={styles.sectionTitle}>Recent Logs</Text>
             </View>
-          </View>
+            <Ionicons name={showLogs ? 'chevron-up' : 'chevron-down'} size={20} color="#6b7280" />
+          </TouchableOpacity>
+          
+          {showLogs && (
+            <View style={styles.logsContainer}>
+              {logs.length > 0 ? (
+                <ScrollView style={styles.logsScroll} nestedScrollEnabled>
+                  {logs.slice(0, 20).map((log, index) => (
+                    <Text key={index} style={styles.logLine} numberOfLines={2}>
+                      {log}
+                    </Text>
+                  ))}
+                </ScrollView>
+              ) : (
+                <Text style={styles.noLogs}>No logs available</Text>
+              )}
+            </View>
+          )}
         </View>
-
-        {/* Stats Grid */}
-        <Text style={styles.sectionTitle}>Performance</Text>
-        <View style={styles.statsGrid}>
-          <StatCard
-            title="Output Bitrate"
-            value={formatBitrate(site.health?.video_bitrate)}
-            icon="speedometer"
-            color="#f59e0b"
-          />
-          <StatCard
-            title="Source Bitrate"
-            value={formatBitrate(site.health?.source_bitrate)}
-            icon="cloud-upload"
-            color="#3b82f6"
-          />
-        </View>
-        <View style={styles.statsGrid}>
-          <StatCard
-            title="CPU Usage"
-            value={formatPercentage(site.health?.cpu_usage)}
-            icon="hardware-chip"
-            color="#22c55e"
-          />
-          <StatCard
-            title="GPU Usage"
-            value={formatPercentage(site.health?.gpu_usage)}
-            icon="desktop"
-            color="#8b5cf6"
-          />
-        </View>
-
-        {/* Additional Stats */}
-        {(site.health?.gpu_temp || site.health?.dropped_frames !== undefined) && (
-          <View style={styles.statsGrid}>
-            {site.health?.gpu_temp && (
-              <StatCard
-                title="GPU Temp"
-                value={`${site.health.gpu_temp}°C`}
-                icon="thermometer"
-                color="#ef4444"
-              />
-            )}
-            {site.health?.dropped_frames !== undefined && (
-              <StatCard
-                title="Dropped Frames"
-                value={site.health.dropped_frames.toString()}
-                icon="warning"
-                color={site.health.dropped_frames > 0 ? '#ef4444' : '#22c55e'}
-              />
-            )}
-          </View>
-        )}
-
-        {/* Last Heartbeat */}
-        {site.health?.last_heartbeat && (
-          <View style={styles.heartbeatContainer}>
-            <Ionicons name="pulse" size={16} color="#6b7280" />
-            <Text style={styles.heartbeatText}>
-              Last heartbeat: {new Date(site.health.last_heartbeat).toLocaleString()}
-            </Text>
-          </View>
-        )}
-
-        {/* Agent Version */}
-        {site.agent_version && (
-          <View style={styles.heartbeatContainer}>
-            <Ionicons name="information-circle" size={16} color="#6b7280" />
-            <Text style={styles.heartbeatText}>
-              Agent version: {site.agent_version}
-            </Text>
-          </View>
-        )}
 
         {/* Restart Button */}
-        <TouchableOpacity
-          style={[styles.restartButton, isRestarting && styles.restartButtonDisabled]}
-          onPress={handleRestart}
-          disabled={isRestarting}
-        >
-          {isRestarting ? (
-            <ActivityIndicator color="#ffffff" />
-          ) : (
-            <>
-              <Ionicons name="power" size={20} color="#ffffff" />
-              <Text style={styles.restartButtonText}>Restart Site PC</Text>
-            </>
-          )}
+        <TouchableOpacity style={styles.restartButton} onPress={handleRestart}>
+          <Ionicons name="power" size={20} color="#ffffff" />
+          <Text style={styles.restartButtonText}>Restart Site PC</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -294,6 +402,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1a1a1a',
   },
   backButton: {
     width: 40,
@@ -310,31 +420,85 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: '#ffffff',
+    marginBottom: 4,
   },
-  locationRow: {
+  headerBadges: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 6,
   },
-  location: {
-    fontSize: 13,
-    color: '#9ca3af',
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#22c55e',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 4,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#ffffff',
+  },
+  liveText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700',
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
-    paddingTop: 0,
+    padding: 16,
+  },
+  previewSection: {
+    marginBottom: 16,
+  },
+  previewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  previewTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  previewLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  updateTime: {
+    fontSize: 12,
+    color: '#6b7280',
   },
   previewContainer: {
     width: '100%',
     aspectRatio: 16 / 9,
-    borderRadius: 16,
+    borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: '#1a1a1a',
-    marginBottom: 20,
   },
   previewImage: {
     width: '100%',
@@ -350,35 +514,38 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6b7280',
   },
-  statusBadgeOverlay: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
   },
-  statusCard: {
+  statCard: {
+    flex: 1,
+    minWidth: (width - 48) / 2 - 4,
     backgroundColor: '#1a1a1a',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
+    padding: 14,
+    alignItems: 'center',
   },
-  statusRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  statCardValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginTop: 8,
   },
-  statusLabel: {
+  statCardLabel: {
     fontSize: 12,
     color: '#6b7280',
-    marginBottom: 4,
+    marginTop: 2,
   },
-  statusValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
-    textTransform: 'capitalize',
+  statCardSub: {
+    fontSize: 11,
+    color: '#4b5563',
+    marginTop: 2,
+  },
+  infoSection: {
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 16,
@@ -386,21 +553,103 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     marginBottom: 12,
   },
-  statsGrid: {
+  infoCard: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 16,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2a2a2a',
+  },
+  infoLabel: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  infoValue: {
+    fontSize: 14,
+    color: '#ffffff',
+    fontWeight: '500',
+  },
+  controlSection: {
+    marginBottom: 16,
+  },
+  controlRow: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 12,
   },
-  heartbeatContainer: {
+  controlButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  stopButton: {
+    backgroundColor: '#ef444420',
+    borderColor: '#ef4444',
+  },
+  startButton: {
+    backgroundColor: '#22c55e20',
+    borderColor: '#22c55e',
+  },
+  controlButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  refreshButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    backgroundColor: '#1a1a1a',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logsSection: {
+    marginBottom: 16,
+  },
+  logsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 14,
+  },
+  logsTitle: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 8,
-    marginBottom: 8,
   },
-  heartbeatText: {
+  logsContainer: {
+    backgroundColor: '#0a0a0a',
+    borderRadius: 12,
+    marginTop: 8,
+    padding: 12,
+    maxHeight: 200,
+  },
+  logsScroll: {
+    maxHeight: 180,
+  },
+  logLine: {
+    fontSize: 11,
+    color: '#9ca3af',
+    fontFamily: 'monospace',
+    marginBottom: 4,
+    lineHeight: 16,
+  },
+  noLogs: {
     fontSize: 13,
     color: '#6b7280',
+    textAlign: 'center',
+    padding: 20,
   },
   restartButton: {
     flexDirection: 'row',
@@ -409,11 +658,8 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: '#ef4444',
     borderRadius: 12,
-    height: 52,
-    marginTop: 16,
-  },
-  restartButtonDisabled: {
-    opacity: 0.7,
+    paddingVertical: 16,
+    marginTop: 8,
   },
   restartButtonText: {
     fontSize: 16,
@@ -436,10 +682,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#ef4444',
     textAlign: 'center',
-  },
-  retryText: {
-    marginTop: 8,
-    fontSize: 14,
-    color: '#f59e0b',
   },
 });

@@ -100,6 +100,29 @@ class ApiClient {
     return response.data;
   }
 
+  // Stream control endpoints
+  async stopStream(siteId: string): Promise<MessageResponse> {
+    const response = await this.client.post<MessageResponse>(`/sites/${siteId}/stop-stream`);
+    return response.data;
+  }
+
+  async startStream(siteId: string): Promise<MessageResponse> {
+    const response = await this.client.post<MessageResponse>(`/sites/${siteId}/start-stream`);
+    return response.data;
+  }
+
+  // Logs endpoint
+  async getSiteLogs(siteId: string, limit: number = 100): Promise<string[]> {
+    const response = await this.client.get<{ logs: string[] } | string[]>(`/sites/${siteId}/logs`, {
+      params: { limit }
+    });
+    // Handle both array and object responses
+    if (Array.isArray(response.data)) {
+      return response.data;
+    }
+    return response.data.logs || [];
+  }
+
   // Alerts endpoints
   async getAlerts(siteId?: string): Promise<AlertsResponse> {
     const params = siteId ? { site_id: siteId } : {};
