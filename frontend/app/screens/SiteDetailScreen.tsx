@@ -21,6 +21,8 @@ export default function SiteDetailScreen() {
   const id = params.id as string;
   
   const [site, setSite] = useState<Site | null>(null);
+  const [logs, setLogs] = useState<string[]>([]);
+  const [showLogs, setShowLogs] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,8 +48,22 @@ export default function SiteDetailScreen() {
     }
   }, [id]);
 
+  const fetchLogs = useCallback(async () => {
+    if (!id) return;
+    try {
+      const logsData = await apiClient.getSiteLogs(id, 50);
+      if (Array.isArray(logsData)) {
+        setLogs(logsData);
+      }
+    } catch (err) {
+      // Silently fail - logs are optional
+      setLogs([]);
+    }
+  }, [id]);
+
   useEffect(() => {
     fetchSite();
+    fetchLogs();
     
     // Auto-refresh every 5 seconds
     const interval = setInterval(() => {
@@ -55,7 +71,7 @@ export default function SiteDetailScreen() {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [fetchSite]);
+  }, [fetchSite, fetchLogs]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -263,6 +279,29 @@ export default function SiteDetailScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Logs Section */}
+        <TouchableOpacity style={styles.logsHeader} onPress={() => { setShowLogs(!showLogs); if (!showLogs) fetchLogs(); }}>
+          <View style={styles.logsHeaderLeft}>
+            <Ionicons name="terminal" size={18} color="#f59e0b" />
+            <Text style={styles.sectionTitle}>Recent Logs</Text>
+          </View>
+          <Ionicons name={showLogs ? 'chevron-up' : 'chevron-down'} size={20} color="#666" />
+        </TouchableOpacity>
+        
+        {showLogs && (
+          <View style={styles.logsBox}>
+            {logs.length > 0 ? (
+              logs.slice(0, 20).map((log, i) => (
+                <Text key={`log-${i}`} style={styles.logLine} numberOfLines={1}>
+                  {typeof log === 'string' ? log : String(log)}
+                </Text>
+              ))
+            ) : (
+              <Text style={styles.noLogs}>No logs available</Text>
+            )}
+          </View>
+        )}
+
         {/* Restart */}
         <TouchableOpacity style={styles.restartBtn} onPress={handleRestart}>
           <Ionicons name="power" size={20} color="#fff" />
@@ -306,8 +345,13 @@ const styles = StyleSheet.create({
   startBtn: { backgroundColor: '#22c55e40', borderWidth: 1, borderColor: '#22c55e' },
   ctrlText: { fontSize: 16, fontWeight: '600', color: '#fff' },
   refreshBtn: { width: 50, height: 50, borderRadius: 12, backgroundColor: '#1a1a1a', alignItems: 'center', justifyContent: 'center' },
-  restartBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#ef4444', borderRadius: 12, paddingVertical: 16, marginTop: 8 },
+  restartBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#ef4444', borderRadius: 12, paddingVertical: 16, marginTop: 16 },
   restartText: { fontSize: 16, fontWeight: '600', color: '#fff' },
   errorText: { color: '#ef4444', marginTop: 12, fontSize: 15 },
   retryText: { color: '#f59e0b', marginTop: 8, fontSize: 14 },
+  logsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#1a1a1a', borderRadius: 12, padding: 14, marginTop: 16 },
+  logsHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  logsBox: { backgroundColor: '#0a0a0a', borderRadius: 12, padding: 12, marginTop: 8 },
+  logLine: { fontSize: 11, color: '#9ca3af', fontFamily: 'monospace', marginBottom: 4 },
+  noLogs: { color: '#666', fontSize: 13, textAlign: 'center', padding: 16 },
 });
